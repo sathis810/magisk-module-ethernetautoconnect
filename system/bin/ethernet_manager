@@ -1,0 +1,167 @@
+#!/system/bin/sh
+# Ethernet Manager - Core functionality for ethernet auto-connect
+# Manages ethernet interfaces (eth0, eth1), WiFi state, and DHCP
+
+LOGFILE="/data/local/tmp/ethernet_autoconnect.log"
+MAX_LOG_SIZE=102400  # 100KB
+
+# Initialize log file
+log() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] $1" >> "$LOGFILE"
+    
+    # Rotate log if too large
+    if [ -f "$LOGFILE" ]; then
+        local size=$(stat -c%s "$LOGFILE" 2>/dev/null || stat -f%z "$LOGFILE" 2>/dev/null || echo 0)
+        if [ "$size" -gt "$MAX_LOG_SIZE" ]; then
+            tail -n 500 "$LOGFILE" > "${LOGFILE}.tmp"
+            mv "${LOGFILE}.tmp" "$LOGFILE"
+        fi
+    fi
+}
+
+# Check if ethernet interface exists and is connected
+is_eth_connected() {
+    local iface=$1
+    
+    # Check if interface exists
+    if [ ! -d "/sys/class/net/$iface" ]; then
+        return 1
+    fi
+    
+    # Check carrier status (1 = connected, 0 = disconnected)
+    local carrier=$(cat "/sys/class/net/$iface/carrier" 2>/dev/null || echo "0")
+    [ "$carrier" = "1" ]
+}
+
+# Get WiFi state
+is_wifi_enabled() {
+    local wifi_state=$(svc wifi query 2>/dev/null | grep -i "enabled" || echo "")
+    [ -n "$wifi_state" ]
+}
+
+# Enable ethernet interface with DHCP
+enable_ethernet() {
+    local iface=$1
+    log "Enabling ethernet interface: $iface"
+    
+    # Bring interface up
+    ifconfig "$iface" up 2>/dev/null || ip link set "$iface" up 2>/dev/null
+    sleep 1
+    
+    # Try to start DHCP client - multiple fallback methods
+    local dhcp_success=0
+    
+    # Method 1: dhcpcd (most common)
+    if command -v dhcpcd >/dev/null 2>&1; then
+        log "Starting DHCP using dhcpcd..."
+        dhcpcd -n "$iface" 2>&1 | head -n 5 >> "$LOGFILE"
+        dhcp_success=$?
+    fi
+    
+    # Method 2: dhcptool (Samsung and some other devices)
+    if [ $dhcp_success -ne 0 ] && command -v dhcptool >/dev/null 2>&1; then
+        log "Starting DHCP using dhcptool..."
+        dhcptool "$iface" 2>&1 | head -n 5 >> "$LOGFILE"
+        dhcp_success=$?
+    fi
+    
+    # Method 3: netcfg (older Android)
+    if [ $dhcp_success -ne 0 ] && command -v netcfg >/dev/null 2>&1; then
+        log "Starting DHCP using netcfg..."
+        netcfg "$iface" dhcp 2>&1 | head -n 5 >> "$LOGFILE"
+        dhcp_success=$?
+    fi
+    
+    # Method 4: Android ConnectivityService
+    if [ $dhcp_success -ne 0 ]; then
+        log "Attempting DHCP via ConnectivityService..."
+        cmd connectivity bind-process-to-network "$iface" 2>&1 | head -n 5 >> "$LOGFILE"
+    fi
+    
+    sleep 2
+    
+    # Verify IP address assigned
+    local ip_addr=$(ip addr show "$iface" 2>/dev/null | grep "inet " | awk '{print $2}' | cut -d'/' -f1)
+    if [ -n "$ip_addr" ]; then
+        log "Ethernet enabled successfully - IP: $ip_addr"
+        return 0
+    else
+        log "Warning: Ethernet interface up but no IP assigned"
+        return 1
+    fi
+}
+
+# Disable ethernet interface
+disable_ethernet() {
+    local iface=$1
+    log "Disabling ethernet interface: $iface"
+    
+    # Kill DHCP clients
+    killall dhcpcd 2>/dev/null
+    killall dhcptool 2>/dev/null
+    
+    # Bring interface down
+    ifconfig "$iface" down 2>/dev/null || ip link set "$iface" down 2>/dev/null
+    log "Ethernet interface disabled: $iface"
+}
+
+# Enable WiFi
+enable_wifi() {
+    log "Enabling WiFi..."
+    svc wifi enable 2>&1 >> "$LOGFILE"
+    sleep 1
+    log "WiFi enabled"
+}
+
+# Disable WiFi
+disable_wifi() {
+    log "Disabling WiFi..."
+    svc wifi disable 2>&1 >> "$LOGFILE"
+    sleep 1
+    log "WiFi disabled"
+}
+
+# Main function - called by service.sh
+main() {
+    local action=$1
+    local iface=$2
+    
+    case "$action" in
+        "check")
+            # Check and enable ethernet if connected
+            for eth_iface in eth0 eth1; do
+                if is_eth_connected "$eth_iface"; then
+                    echo "connected:$eth_iface"
+                    return 0
+                fi
+            done
+            echo "disconnected"
+            return 1
+            ;;
+            
+        "enable")
+            # Enable ethernet and disable WiFi
+            if [ -n "$iface" ]; then
+                enable_ethernet "$iface"
+                disable_wifi
+            fi
+            ;;
+            
+        "disable")
+            # Disable ethernet and enable WiFi
+            if [ -n "$iface" ]; then
+                disable_ethernet "$iface"
+            fi
+            enable_wifi
+            ;;
+            
+        *)
+            log "Unknown action: $action"
+            return 1
+            ;;
+    esac
+}
+
+# Execute main function with arguments
+main "$@"
