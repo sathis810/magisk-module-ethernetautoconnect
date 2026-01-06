@@ -16,6 +16,11 @@ log "Boot completed"
 
 log "Force Ethernet service started for interface: $IFACE"
 
+# Track restart attempts to prevent excessive restarts
+RESTART_COUNT=0
+MAX_RESTARTS=3
+LAST_RESTART_TIME=0
+
 while true; do
     if [ ! -d "/sys/class/net/$IFACE" ]; then
         log "Interface $IFACE not present"
@@ -34,17 +39,35 @@ while true; do
 
     log "State check → carrier=$CARRIER ipv4=$IPV4"
 
-    if [ "$CARRIER" = "1" ] && [ "$HAS_IP" -eq 0 ]; then
-        log "Ethernet connected but no IP → restarting EthernetService"
-
-        setprop ctl.restart ethernet
-        log "Sent ctl.restart ethernet"
-
-        setprop ctl.restart netd
-        log "Sent ctl.restart netd (fallback)"
-
-        sleep 5
+    # Reset restart counter if IP is obtained
+    if [ "$HAS_IP" -eq 1 ]; then
+        RESTART_COUNT=0
     fi
 
-    sleep 3
+    # Only attempt restart if conditions are met and we haven't exceeded max restarts
+    if [ "$CARRIER" = "1" ] && [ "$HAS_IP" -eq 0 ] && [ "$RESTART_COUNT" -lt "$MAX_RESTARTS" ]; then
+        CURRENT_TIME=$(date +%s)
+        TIME_SINCE_LAST=$(($CURRENT_TIME - $LAST_RESTART_TIME))
+        
+        # Only restart if at least 30 seconds have passed since last restart
+        if [ "$TIME_SINCE_LAST" -gt 30 ] || [ "$LAST_RESTART_TIME" -eq 0 ]; then
+            log "Ethernet connected but no IP → restarting ethernet service (attempt $((RESTART_COUNT + 1))/$MAX_RESTARTS)"
+            
+            # Only restart ethernet service - do NOT restart netd (too dangerous)
+            setprop ctl.restart ethernet
+            log "Sent ctl.restart ethernet"
+            
+            RESTART_COUNT=$((RESTART_COUNT + 1))
+            LAST_RESTART_TIME=$CURRENT_TIME
+            
+            # Wait longer after restart to give service time to stabilize
+            sleep 15
+        else
+            log "Skipping restart - cooldown period not elapsed"
+        fi
+    elif [ "$RESTART_COUNT" -ge "$MAX_RESTARTS" ]; then
+        log "Max restart attempts reached. Manual intervention may be required."
+    fi
+
+    sleep 5
 done
