@@ -7,16 +7,15 @@ SKIPUNZIP=0
 
 # Print installation messages
 ui_print "**************************************"
-ui_print " Ethernet Auto-Connect Module"
+ui_print " Force Ethernet Always On"
 ui_print "**************************************"
 ui_print ""
-ui_print "Installing ethernet auto-connect module..."
+ui_print "Installing ethernet force module..."
 ui_print ""
 ui_print "Features:"
-ui_print "- Auto-enables eth0/eth1 when connected"
-ui_print "- Disables WiFi during ethernet use"
-ui_print "- Restores WiFi when ethernet disconnects"
-ui_print "- DHCP configuration"
+ui_print "- Keeps eth0 interface always UP"
+ui_print "- Monitors cable connection (carrier)"
+ui_print "- Re-enables eth0 every 3 seconds if down"
 ui_print ""
 ui_print "Target: Android 14, 15, 16"
 ui_print ""
@@ -24,10 +23,10 @@ ui_print ""
 # Set permissions
 set_perm_recursive $MODPATH 0 0 0755 0644
 set_perm $MODPATH/service.sh 0 0 0755
-set_perm $MODPATH/system/bin/ethernet_manager 0 0 0755
+set_perm $MODPATH/uninstall.sh 0 0 0755
 
 ui_print "Installation complete!"
 ui_print "Please reboot your device."
 ui_print ""
-ui_print "Logs: /data/local/tmp/ethernet_autoconnect.log"
+ui_print "Logs: /data/local/tmp/force_eth.log"
 ui_print "**************************************"

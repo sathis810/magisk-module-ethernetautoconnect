@@ -1,6 +1,6 @@
-id=ethernet_autoconnect
-name=Ethernet Auto-Connect
-version=1.0.0
+id=force-ethernet-always-on
+name=Force Ethernet Always On
+version=1.0
 versionCode=1
 author=sathis810
-description=Automatically enables ethernet (eth0/eth1) when connected, disables WiFi during ethernet use, and restores WiFi when ethernet disconnects. Supports Android 14-16 with DHCP configuration.
+description=Automatically enables eth0 when available and re-enables it every 3 seconds if disabled

@@ -1,133 +1,114 @@
-# Ethernet Auto-Connect - Magisk Module
+# Force Ethernet Always On
 
-Automatically enables ethernet (eth0/eth1) when connected, disables WiFi during ethernet use, and restores WiFi when ethernet disconnects.
+A Magisk module that automatically enables and maintains Ethernet (eth0) connectivity on Android devices.
 
 ## Features
 
-- ✅ Auto-detects and enables ethernet interfaces (eth0, eth1)
-- ✅ Automatic DHCP configuration with multiple fallback methods
-- ✅ Disables WiFi when ethernet is active
-- ✅ Re-enables WiFi when ethernet cable is unplugged
-- ✅ Real-time monitoring with 3-second refresh rate
-- ✅ Comprehensive logging for troubleshooting
-- ✅ Supports Android 14, 15, and 16
+- 🔌 **Auto-Enable Ethernet**: Automatically brings up eth0 interface when an Ethernet cable is connected
+- 📡 **Carrier Detection**: Monitors cable connection status using carrier detection
+- ♻️ **Auto-Recovery**: Re-enables eth0 every 3 seconds if it gets disabled
+- 📝 **Logging**: Comprehensive logging to `/data/local/tmp/force_eth.log` for debugging
+- 🚀 **Boot Integration**: Starts automatically after system boot completion
 
-## Requirements
+## Compatibility
 
-- Magisk v20.4 or higher
-- Android 14, 15, or 16
-- Ethernet adapter (USB or built-in) with eth0 or eth1 interface name
-- Root access via Magisk
+- **Android**: 14, 15, 16 (should work on other versions too)
+- **Magisk**: 20.4+ (recommended latest version)
+- **Requirements**: Device must have Ethernet hardware (eth0 interface)
 
 ## Installation
 
-1. Download the module ZIP file
+1. Download the module `.zip` file
 2. Open Magisk Manager app
-3. Tap **Modules** tab
-4. Tap **Install from storage**
-5. Select the downloaded ZIP file
-6. Wait for installation to complete
-7. **Reboot your device**
+3. Go to **Modules** → **Install from storage**
+4. Select the downloaded `.zip` file
+5. Reboot your device
 
 ## How It Works
 
-The module runs a background service that continuously monitors ethernet connection status:
+The module runs a background service that:
+1. Waits for system boot completion
+2. Continuously monitors the eth0 interface
+3. Checks if an Ethernet cable is connected (carrier status)
+4. If cable is connected but interface is down, brings it up
+5. Repeats check every 3 seconds
 
-1. **Connection Detected**: When ethernet cable is plugged in:
-   - Brings up eth0/eth1 interface
-   - Requests IP address via DHCP
-   - Disables WiFi automatically
+## Logs
 
-2. **Disconnection Detected**: When ethernet cable is unplugged:
-   - Brings down ethernet interface
-   - Re-enables WiFi automatically
+To view the module logs:
 
-## Troubleshooting
-
-### Check Logs
-
-View detailed logs to diagnose issues:
 ```bash
-adb shell cat /data/local/tmp/ethernet_autoconnect.log
+adb shell
+cat /data/local/tmp/force_eth.log
 ```
 
-Or on device (requires terminal emulator):
+Or using a terminal emulator on your device:
+
 ```bash
 su
-cat /data/local/tmp/ethernet_autoconnect.log
-```
-
-### Common Issues
-
-**Ethernet not enabling:**
-- Verify your ethernet adapter is recognized: `ifconfig` or `ip addr`
-- Check if interface is named eth0 or eth1
-- Review logs for DHCP errors
-
-**WiFi not disabling/enabling:**
-- Ensure `svc wifi` commands work: `svc wifi disable` / `svc wifi enable`
-- Some custom ROMs may require additional permissions
-
-**No IP address assigned:**
-- Check DHCP server on your network
-- Try different DHCP client methods (module tries multiple automatically)
-- Verify ethernet cable and router connection
-
-### Manual Testing
-
-Test ethernet manager manually:
-```bash
-su
-# Check status
-/system/bin/ethernet_manager check
-
-# Manually enable ethernet
-/system/bin/ethernet_manager enable eth0
-
-# Manually disable and restore WiFi
-/system/bin/ethernet_manager disable eth0
+cat /data/local/tmp/force_eth.log
 ```
 
 ## Uninstallation
 
 1. Open Magisk Manager
 2. Go to **Modules**
-3. Tap **Remove** on "Ethernet Auto-Connect"
-4. Reboot device
+3. Find "Force Ethernet Always On"
+4. Tap **Remove**
+5. Reboot your device
 
-WiFi will be automatically re-enabled during uninstallation.
+The uninstall script will automatically clean up the log file.
+
+## Troubleshooting
+
+### Ethernet not enabling
+
+1. Check if your device has eth0 interface:
+   ```bash
+   ls /sys/class/net/
+   ```
+
+2. Check if cable is connected:
+   ```bash
+   cat /sys/class/net/eth0/carrier
+   ```
+   (Should return `1` if cable is connected)
+
+3. Check module logs:
+   ```bash
+   cat /data/local/tmp/force_eth.log
+   ```
+
+### Service not starting
+
+1. Verify the module is enabled in Magisk Manager
+2. Check Magisk logs in the app
+3. Ensure you rebooted after installation
 
 ## Technical Details
 
-**Ethernet Detection**: Monitors `/sys/class/net/eth*/carrier` for connection state
+- **ID**: `force-ethernet-always-on`
+- **Service Script**: Runs in background checking eth0 status
+- **Check Interval**: 3 seconds
+- **Log Location**: `/data/local/tmp/force_eth.log`
 
-**DHCP Methods** (in order of attempt):
-1. `dhcpcd` - Standard Linux DHCP client
-2. `dhcptool` - Samsung and OEM tools
-3. `netcfg` - Legacy Android
-4. ConnectivityService - Android framework
+## Contributing
 
-**WiFi Control**: Uses `svc wifi` service commands (Android 14-16 compatible)
+Feel free to submit issues or pull requests on the GitHub repository.
 
-**Monitoring Interval**: 3 seconds for responsive detection
+## Author
 
-## Log Rotation
-
-Logs are automatically rotated when they exceed 100KB to prevent storage issues.
-
-## Credits
-
-- Author: sathis810
-- Version: 1.0.0
-- Repository: [magisk-module-ethernetautoconnect](https://github.com/sathis810/magisk-module-ethernetautoconnect)
+**sathis810**
 
 ## License
 
-This module is provided as-is for personal use. Modify and distribute freely.
+This module is provided as-is without any warranty. Use at your own risk.
 
-## Support
+## Changelog
 
-If you encounter issues:
-1. Check the troubleshooting section above
-2. Review logs at `/data/local/tmp/ethernet_autoconnect.log`
-3. Open an issue on GitHub with log details
+### v1.0 (Initial Release)
+- Auto-enable eth0 on cable connection
+- Carrier detection support
+- 3-second monitoring interval
+- Logging functionality
+- Clean uninstall process
