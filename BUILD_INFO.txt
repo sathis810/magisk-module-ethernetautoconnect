@@ -1,0 +1,145 @@
+====================================
+MAGISK MODULE BUILD INFORMATION
+====================================
+
+Module Name: Force Ethernet Always On
+Version: 1.10
+Build Date: January 6, 2026
+Package: force-ethernet-always-on-v1.10.zip
+Size: 10.8 KB
+SHA256: 6F3E4245C0C31361B7C034C1677790C38725034D03DED5A4B2B86B34EB44410C
+
+====================================
+INCLUDED FILES
+====================================
+
+Core Module Files:
+  ✓ module.prop           (203 bytes)  - Module metadata
+  ✓ service.sh           (9,699 bytes) - Main automation service
+  ✓ customize.sh         (1,088 bytes) - Installation script
+  ✓ uninstall.sh           (53 bytes)  - Cleanup script
+
+Documentation:
+  ✓ README.md            (8,159 bytes) - Complete user guide
+
+Testing Tools:
+  ✓ test_ui_automation.sh    (3,863 bytes) - UI coordinate finder
+  ✓ validate_automation.sh   (4,491 bytes) - Device compatibility checker
+
+====================================
+FEATURES IN THIS BUILD
+====================================
+
+✅ Auto-Detection:
+   - Monitors eth0 interface continuously
+   - Detects cable connection via carrier status
+   - Checks IP assignment status
+
+✅ Multi-Method Enabling:
+   - Command-line methods (3 attempts with 30s cooldown)
+     • cmd connectivity tether ethernet on
+     • ndc tether interface add eth0
+     • ip link set eth0 up
+     • dhcpcd eth0
+
+✅ UI Automation Fallback (NEW!):
+   - Tier 1: UIAutomator (finds exact toggle coordinates)
+   - Tier 2: Dynamic screen positioning (resolution-aware)
+   - Tier 3: DPAD navigation (universal fallback)
+
+✅ Smart Verification:
+   - Verifies IP assignment after UI automation
+   - Auto-retries after 5 minutes if unsuccessful
+   - Comprehensive logging
+
+====================================
+INSTALLATION
+====================================
+
+1. Transfer to device:
+   adb push force-ethernet-always-on-v1.10.zip /sdcard/
+
+2. Install via Magisk Manager:
+   - Open Magisk Manager
+   - Modules → Install from storage
+   - Select force-ethernet-always-on-v1.10.zip
+   - Reboot
+
+====================================
+TESTING & VALIDATION
+====================================
+
+Before Installation:
+  adb push validate_automation.sh /data/local/tmp/
+  adb shell "su -c 'sh /data/local/tmp/validate_automation.sh'"
+
+After Installation:
+  adb shell "su -c 'tail -f /data/local/tmp/force_eth.log'"
+
+UI Automation Calibration (if needed):
+  adb push test_ui_automation.sh /data/local/tmp/
+  adb shell "su -c 'sh /data/local/tmp/test_ui_automation.sh'"
+
+====================================
+COMPATIBILITY
+====================================
+
+Android: 14, 15, 16+ (should work on 11+)
+Magisk: 20.4+ (tested on Magisk 30)
+Architecture: Universal (shell script)
+Requirements: Device with eth0 interface
+
+====================================
+CHANGELOG v1.10
+====================================
+
+NEW:
++ Intelligent UI automation with three-tier approach
++ UIAutomator integration for exact toggle detection
++ Dynamic screen resolution detection
++ IP assignment verification after automation
++ Auto-retry logic (5-minute intervals)
++ validate_automation.sh tool for device testing
++ AUTOMATION_FLOW.md documentation
+
+IMPROVED:
++ Better Android compatibility (sed instead of grep -P)
++ Enhanced logging with success/failure indicators
++ More robust fallback mechanisms
++ Comprehensive error handling
+
+====================================
+KNOWN LIMITATIONS
+====================================
+
+- UI automation requires 'uiautomator' command (available on most devices)
+- Screen tap coordinates may need calibration on custom ROMs
+- DHCP server must be available on network
+- Some OEM skins may have different Settings layouts
+
+====================================
+SUPPORT & TROUBLESHOOTING
+====================================
+
+View Logs:
+  adb shell "su -c 'cat /data/local/tmp/force_eth.log'"
+
+Check eth0 Status:
+  adb shell "su -c 'cat /sys/class/net/eth0/carrier'"
+  adb shell "su -c 'ip -4 addr show eth0'"
+
+Test UI Automation:
+  Run test_ui_automation.sh to find correct coordinates
+
+====================================
+BUILD VERIFIED
+====================================
+
+✓ All core files included
+✓ Module structure validated
+✓ Shell scripts have correct line endings
+✓ File permissions will be set by customize.sh
+✓ Ready for distribution
+
+====================================
+

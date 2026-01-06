@@ -171,12 +171,14 @@ while [ "$(getprop sys.boot_completed)" != "1" ]; do
 done
 log "Boot completed"
 
-log "Force Ethernet service started for interface: $IFACE"
+log "========================================="
+log "Force Ethernet UI Automation Service Started"
+log "Interface: $IFACE"
+log "Mode: UI AUTOMATION ONLY"
+log "========================================="
 
-# Track restart attempts to prevent excessive restarts
-RESTART_COUNT=0
-MAX_RESTARTS=3
-LAST_RESTART_TIME=0
+# Track UI automation attempts
+LAST_AUTOMATION_TIME=0
 UI_AUTOMATION_ATTEMPTED=0
 
 while true; do
@@ -195,81 +197,54 @@ while true; do
     HAS_IP=0
     [ -n "$IPV4" ] && HAS_IP=1
 
-    # Reset restart counter if IP is obtained
+    # Reset automation flag if IP is obtained
     if [ "$HAS_IP" -eq 1 ]; then
-        RESTART_COUNT=0
+        if [ "$UI_AUTOMATION_ATTEMPTED" -eq 1 ]; then
+            log "✓ Ethernet active with IP: $IPV4"
+        fi
+        UI_AUTOMATION_ATTEMPTED=0
     fi
 
-    # Only attempt restart if conditions are met and we haven't exceeded max restarts
-    if [ "$CARRIER" = "1" ] && [ "$HAS_IP" -eq 0 ] && [ "$RESTART_COUNT" -lt "$MAX_RESTARTS" ]; then
+    # UI Automation: Trigger when cable connected but no IP
+    if [ "$CARRIER" = "1" ] && [ "$HAS_IP" -eq 0 ] && [ "$UI_AUTOMATION_ATTEMPTED" -eq 0 ]; then
         CURRENT_TIME=$(date +%s)
-        TIME_SINCE_LAST=$(($CURRENT_TIME - $LAST_RESTART_TIME))
+        TIME_SINCE_LAST=$(($CURRENT_TIME - $LAST_AUTOMATION_TIME))
         
-        # Only restart if at least 30 seconds have passed since last restart
-        if [ "$TIME_SINCE_LAST" -gt 30 ] || [ "$LAST_RESTART_TIME" -eq 0 ]; then
-            log "Ethernet connected but no IP → enabling ethernet tethering (attempt $((RESTART_COUNT + 1))/$MAX_RESTARTS)"
+        # Wait at least 10 seconds between UI automation attempts
+        if [ "$TIME_SINCE_LAST" -gt 10 ] || [ "$LAST_AUTOMATION_TIME" -eq 0 ]; then
+            log "========================================="
+            log "TRIGGER: Ethernet cable detected but no IP"
+            log "Starting UI automation sequence..."
+            log "========================================="
             
-            # Enable ethernet tethering using Android connectivity command
-            cmd connectivity tether ethernet on 2>/dev/null || cmd connectivity tethering ethernet on 2>/dev/null
-            log "Enabled Ethernet tethering via connectivity command"
+            LAST_AUTOMATION_TIME=$CURRENT_TIME
+            open_tethering_settings
             
-            # Alternative method using ndc (network daemon control)
-            ndc tether interface add $IFACE 2>/dev/null
-            log "Added $IFACE to tethering via ndc"
+            # Verify if UI automation was successful
+            if verify_ip_obtained; then
+                log "✓ SUCCESS: UI automation enabled Ethernet!"
+                UI_AUTOMATION_ATTEMPTED=1
+            else
+                log "✗ FAILED: No IP assignment after UI automation"
+                log "Possible causes:"
+                log "  → Toggle not found/clicked correctly"
+                log "  → DHCP server not responding on network"
+                log "  → Manual settings configuration required"
+                UI_AUTOMATION_ATTEMPTED=1
+            fi
             
-            # Bring interface up manually
-            ip link set $IFACE up 2>/dev/null
-            log "Brought $IFACE interface up"
-            
-            # Request DHCP if available
-            dhcpcd $IFACE 2>/dev/null &
-            log "Requested DHCP for $IFACE"
-            
-            RESTART_COUNT=$((RESTART_COUNT + 1))
-            LAST_RESTART_TIME=$CURRENT_TIME
-            
-            # Wait longer after restart to give service time to stabilize
-            sleep 15
+            sleep 30
         else
-            log "Skipping restart - cooldown period not elapsed"
+            log "Cooldown active - waiting before next attempt..."
         fi
-    elif [ "$RESTART_COUNT" -ge "$MAX_RESTARTS" ] && [ "$UI_AUTOMATION_ATTEMPTED" -eq 0 ]; then
-        log "========================================="
-        log "Max command-line restart attempts reached!"
-        log "Ethernet cable detected but no IP assigned"
-        log "Attempting UI automation as fallback..."
-        log "========================================="
-        
-        open_tethering_settings
-        
-        # Verify if UI automation was successful
-        if verify_ip_obtained; then
-            log "✓ UI automation successful! Ethernet is now active."
-            UI_AUTOMATION_ATTEMPTED=1
-            RESTART_COUNT=0
-        else
-            log "✗ UI automation did not result in IP assignment."
-            log "This could mean:"
-            log "  - Toggle was not found/clicked"
-            log "  - DHCP server not responding"
-            log "  - Manual configuration required"
-            UI_AUTOMATION_ATTEMPTED=1
-            
-            # Reset counters to try again after longer wait
-            RESTART_COUNT=0
-        fi
-        
-        sleep 30
     elif [ "$UI_AUTOMATION_ATTEMPTED" -eq 1 ] && [ "$HAS_IP" -eq 0 ]; then
-        # UI automation was tried but still no IP
-        # Reset the flag after 5 minutes to allow retry
+        # UI automation attempted but still no IP - retry after 5 minutes
         CURRENT_TIME=$(date +%s)
-        if [ $((CURRENT_TIME - LAST_RESTART_TIME)) -gt 300 ]; then
-            log "Resetting UI automation flag to allow retry..."
+        if [ $((CURRENT_TIME - $LAST_AUTOMATION_TIME)) -gt 300 ]; then
+            log "Auto-retry: Resetting automation flag after 5-minute wait..."
             UI_AUTOMATION_ATTEMPTED=0
-            RESTART_COUNT=0
         else
-            log "Waiting before retry... (Manual intervention may be needed)"
+            log "Waiting for IP assignment or manual intervention..."
             sleep 60
         fi
     fi

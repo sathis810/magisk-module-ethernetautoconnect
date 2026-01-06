@@ -1,11 +1,11 @@
-# Ethernet Auto-Detection & Enabling Flow
+# Ethernet UI Automation Flow
 
-## Complete Automation Flow
+## Complete UI-Only Automation Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     SYSTEM BOOT COMPLETE                         │
-│                  Service Started (service.sh)                    │
+│              UI Automation Service Started (service.sh)          │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -42,158 +42,232 @@
                     │         │       YES│                   │NO
                     │         │          ↓                   ↓
                     │         │    ┌──────────┐      ┌───────────────┐
-                    │         │    │   ✓ OK   │      │ ENABLE NEEDED │
-                    │         │    │  Reset   │      │ Attempt < 3?  │
-                    │         │    │ Counters │      └───────────────┘
+                    │         │    │   ✓ OK   │      │ UI AUTOMATION │
+                    │         │    │  Reset   │      │   TRIGGERED   │
+                    │         │    │   Flag   │      └───────────────┘
                     │         │    └──────────┘              ↓
-                    │         │          ↓           ┌───────┴────────┐
-                    │         │          │        YES│                │NO
-                    └─────────┴──────────┘           ↓                ↓
-                              ↑          ┌───────────────────┐  ┌─────────────┐
-                              │          │  COMMAND-LINE     │  │ UI AUTOMATION│
-                              │          │  METHODS          │  │  FALLBACK    │
-                              │          │  (Tier 1)         │  │  (Tier 2)    │
-                              │          └───────────────────┘  └─────────────┘
-                              │                  ↓                      ↓
-                              │          ┌───────────────────┐         │
-                              │          │ 1. cmd connectivity│         │
-                              │          │ 2. ndc tether     │         │
-                              │          │ 3. ip link set up │         │
-                              │          │ 4. dhcpcd request │         │
-                              │          └───────────────────┘         │
-                              │                  ↓                     │
-                              │          ┌───────────────────┐         │
-                              │          │  Wait 15 seconds  │         │
-                              │          │  (DHCP timeout)   │         │
-                              │          └───────────────────┘         │
-                              │                  ↓                     │
-                              │          ┌───────────────────┐         │
-                              │          │ Increment Counter │         │
-                              │          │ Attempt++         │         │
-                              │          └───────────────────┘         │
-                              └──────────────────┬───────────────────────┘
-                                                 │
-    ┌────────────────────────────────────────────┘
-    │
-    ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                     UI AUTOMATION SEQUENCE                       │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ STEP 1: Open Tethering Settings                                 │
-│  ├─ Try: am start -a android.settings.TETHER_SETTINGS           │
-│  ├─ Fallback 1: am start -n com.android.settings/.TetherSettings│
-│  └─ Fallback 2: am start -a android.settings.WIRELESS_SETTINGS  │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ STEP 2: Detect Screen Resolution                                │
-│  └─ wm size → Calculate CENTER_X, CENTER_Y                      │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ STEP 3: TIER 1 - UIAutomator Smart Detection                    │
-│  ├─ Run: uiautomator dump /data/local/tmp/ui_dump.xml          │
-│  ├─ Search: grep -i "ethernet"                                  │
-│  ├─ Extract: bounds="[left,top][right,bottom]"                  │
-│  ├─ Calculate: TAP_X = (left+right)/2, TAP_Y = (top+bottom)/2  │
-│  └─ Execute: input tap TAP_X TAP_Y                              │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-    │ If UIAutomator fails ↓
-    │
-┌─────────────────────────────────────────────────────────────────┐
-│ STEP 4: TIER 2 - Dynamic Screen Positioning                     │
-│  ├─ Scroll: input swipe CENTER_X 1500 CENTER_X 700              │
-│  ├─ Try Position 1: CENTER_X, (CENTER_Y + CENTER_Y/2)          │
-│  ├─ Try Position 2: CENTER_X, CENTER_Y                          │
-│  └─ Wait between attempts                                        │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-    │ If screen taps fail ↓
-    │
-┌─────────────────────────────────────────────────────────────────┐
-│ STEP 5: TIER 3 - DPAD Navigation                                │
-│  ├─ Press KEYCODE_DPAD_DOWN (5 times)                           │
-│  └─ Press KEYCODE_ENTER                                          │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ STEP 6: Return to Home                                           │
-│  └─ input keyevent KEYCODE_HOME                                  │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ STEP 7: Verify IP Assignment                                     │
-│  ├─ Wait 5 seconds for DHCP                                      │
-│  ├─ Check IP 5 times (2 sec intervals)                          │
-│  ├─ If SUCCESS: Log "✓ UI automation successful!"               │
-│  └─ If FAIL: Log "✗ UI automation did not result in IP"         │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ STEP 8: Auto-Retry Logic                                         │
-│  ├─ Reset counters                                               │
-│  ├─ Wait 30 seconds                                              │
-│  └─ If still no IP after 5 minutes, retry entire sequence       │
-└─────────────────────────────────────────────────────────────────┘
-    ↓
-    └──────► RETURN TO CONTINUOUS MONITORING (top)
+                    │         │          ↓                   │
+                    └─────────┴──────────┘                   │
+                              ↑                              │
+                              │                              │
+                              │                              ↓
+                              │              ┌───────────────────────────┐
+                              │              │ OPEN TETHERING SETTINGS   │
+                              │              └───────────────────────────┘
+                              │                              ↓
+                              │              ┌───────────────────────────┐
+                              │              │ DETECT SCREEN RESOLUTION  │
+                              │              │ wm size → CENTER_X, CENTER_Y│
+                              │              └───────────────────────────┘
+                              │                              ↓
+                              │              ┌───────────────────────────┐
+                              │              │ TIER 1: UIAutomator       │
+                              │              │ ─────────────────────     │
+                              │              │ • Dump UI hierarchy       │
+                              │              │ • Find "ethernet" element │
+                              │              │ • Extract bounds coords   │
+                              │              │ • Calculate center tap    │
+                              │              │ • Execute tap             │
+                              │              └───────────────────────────┘
+                              │                              ↓
+                              │                    ┌─────────┴─────────┐
+                              │                    │                   │
+                              │              SUCCESS│                   │FAIL
+                              │                    ↓                   ↓
+                              │            ┌──────────┐    ┌───────────────────┐
+                              │            │ Tap Done │    │ TIER 2: Screen    │
+                              │            └──────────┘    │ Positioning       │
+                              │                    │       │ ─────────────     │
+                              │                    │       │ • Scroll to find  │
+                              │                    │       │ • Try lower third │
+                              │                    │       │ • Try middle      │
+                              │                    │       └───────────────────┘
+                              │                    │               ↓
+                              │                    │       ┌───────┴────────┐
+                              │                    │       │                │
+                              │                    │ SUCCESS│                │FAIL
+                              │                    │       ↓                ↓
+                              │                    │  ┌─────────┐  ┌────────────┐
+                              │                    │  │Tap Done │  │ TIER 3:    │
+                              │                    │  └─────────┘  │ DPAD Nav   │
+                              │                    │       │       │ ────────── │
+                              │                    │       │       │ • 5x DOWN  │
+                              │                    │       │       │ • ENTER    │
+                              │                    │       │       └────────────┘
+                              │                    │       │               │
+                              │                    └───────┴───────────────┘
+                              │                              ↓
+                              │              ┌───────────────────────────┐
+                              │              │ RETURN TO HOME SCREEN     │
+                              │              │ input keyevent KEYCODE_HOME│
+                              │              └───────────────────────────┘
+                              │                              ↓
+                              │              ┌───────────────────────────┐
+                              │              │ VERIFY IP ASSIGNMENT      │
+                              │              │ ─────────────────────     │
+                              │              │ • Wait 5 seconds for DHCP│
+                              │              │ • Check IP 5 times       │
+                              │              │ • 2 second intervals     │
+                              │              └───────────────────────────┘
+                              │                              ↓
+                              │                    ┌─────────┴─────────┐
+                              │                    │                   │
+                              │            SUCCESS │                   │ FAIL
+                              │                    ↓                   ↓
+                              │        ┌───────────────────┐  ┌────────────────┐
+                              │        │ ✓ Log Success     │  │ ✗ Log Failure  │
+                              │        │ Set Flag          │  │ Set Flag       │
+                              │        │ Return to Monitor │  │ Wait 5 minutes │
+                              │        └───────────────────┘  │ Reset & Retry  │
+                              │                    │          └────────────────┘
+                              │                    │                   │
+                              └────────────────────┴───────────────────┘
 ```
 
-## Key Features
+## Key Features - UI Automation Only
 
 ### ✅ **Auto-Detection**
 - Continuously monitors `/sys/class/net/eth0` 
 - Checks carrier status (cable connected = 1)
 - Verifies IP address assignment
 
-### ✅ **Smart Enabling**
-1. **Command-line first** (3 attempts, 30s cooldown)
-2. **UI automation fallback** (if commands fail)
-3. **Three-tier UI approach** (UIAutomator → Screen taps → DPAD)
+### ✅ **UI Automation Flow**
+1. **Immediate trigger** when eth0 detected without IP
+2. **Three-tier intelligent approach**:
+   - **Tier 1**: UIAutomator (finds exact coordinates)
+   - **Tier 2**: Dynamic screen positioning
+   - **Tier 3**: DPAD navigation
+3. **Automatic verification** of IP assignment
 
 ### ✅ **Self-Healing**
-- Resets counters when IP obtained
-- Retries UI automation after 5 minutes if failed
-- Comprehensive logging at every step
+- Resets flag when IP obtained
+- Retries after 5 minutes if failed
+- 10-second cooldown between attempts
 
-### ✅ **Compatibility**
-- Works with Android 14, 15, 16+
-- Supports different screen resolutions
-- Falls back to multiple methods
+### ✅ **Pure UI Automation**
+- ❌ No command-line methods
+- ✅ Direct UI interaction only
+- ✅ Works on locked-down Android systems
+
+## Detailed UI Automation Steps
+
+### Step 1: Open Tethering Settings
+```bash
+# Try multiple methods to open settings
+am start -a android.settings.TETHER_SETTINGS
+  ↓ (if fails)
+am start -n com.android.settings/.TetherSettings
+  ↓ (if fails)
+am start -a android.settings.WIRELESS_SETTINGS
+```
+
+### Step 2: Detect Screen Resolution
+```bash
+wm size → Extract Width x Height
+Calculate: CENTER_X = Width / 2
+Calculate: CENTER_Y = Height / 2
+```
+
+### Step 3: UIAutomator Detection (Tier 1)
+```bash
+1. uiautomator dump /data/local/tmp/ui_dump.xml
+2. grep -i "ethernet" ui_dump.xml
+3. Extract: bounds="[left,top][right,bottom]"
+4. Calculate: TAP_X = (left + right) / 2
+5. Calculate: TAP_Y = (top + bottom) / 2
+6. Execute: input tap TAP_X TAP_Y
+```
+
+**Example Output:**
+```
+UIAutomator found bounds: [48,789][1032,912]
+Found Ethernet toggle at coordinates: 540,850
+Tapped Ethernet toggle
+```
+
+### Step 4: Screen Positioning (Tier 2 - Fallback)
+```bash
+1. Scroll down: input swipe CENTER_X 1500 CENTER_X 700
+2. Try position 1: TAP_Y = CENTER_Y + (CENTER_Y / 2)
+   → input tap CENTER_X TAP_Y
+3. Try position 2: input tap CENTER_X CENTER_Y
+```
+
+### Step 5: DPAD Navigation (Tier 3 - Last Resort)
+```bash
+Loop 5 times:
+  input keyevent KEYCODE_DPAD_DOWN
+  sleep 0.3
+input keyevent KEYCODE_ENTER
+```
+
+### Step 6: Return Home
+```bash
+input keyevent KEYCODE_HOME
+```
+
+### Step 7: Verify Success
+```bash
+Wait 5 seconds
+Loop 5 times:
+  Check: ip -4 addr show eth0 | grep "inet"
+  If IP found: ✓ SUCCESS
+  sleep 2 seconds
+If no IP after 5 attempts: ✗ FAIL
+```
 
 ## Log Examples
 
-### Successful Command-Line Enable:
-```
-2026-01-06 14:23:45 | Ethernet connected but no IP → enabling ethernet tethering (attempt 1/3)
-2026-01-06 14:23:45 | Enabled Ethernet tethering via connectivity command
-2026-01-06 14:23:45 | Added eth0 to tethering via ndc
-2026-01-06 14:23:45 | Brought eth0 interface up
-2026-01-06 14:23:45 | Requested DHCP for eth0
-```
-
 ### Successful UI Automation:
 ```
-2026-01-06 14:24:15 | =========================================
-2026-01-06 14:24:15 | Max command-line restart attempts reached!
-2026-01-06 14:24:15 | Ethernet cable detected but no IP assigned
-2026-01-06 14:24:15 | Attempting UI automation as fallback...
-2026-01-06 14:24:15 | =========================================
-2026-01-06 14:24:15 | Opening Tethering settings UI...
-2026-01-06 14:24:15 | Screen center: 540x960
-2026-01-06 14:24:18 | Settings opened, waiting for UI to stabilize...
-2026-01-06 14:24:20 | Attempting to locate Ethernet toggle using UIAutomator...
-2026-01-06 14:24:21 | UIAutomator found bounds: [48,789][1032,912]
-2026-01-06 14:24:21 | Found Ethernet toggle at coordinates: 540,850
-2026-01-06 14:24:21 | Tapped Ethernet toggle
-2026-01-06 14:24:23 | UI automation completed, returning to home...
-2026-01-06 14:24:24 | UI automation sequence finished
-2026-01-06 14:24:29 | ✓ IP address obtained: 192.168.1.100/24
-2026-01-06 14:24:29 | ✓ UI automation successful! Ethernet is now active.
+2026-01-06 18:30:12 | =========================================
+2026-01-06 18:30:12 | Force Ethernet UI Automation Service Started
+2026-01-06 18:30:12 | Interface: eth0
+2026-01-06 18:30:12 | Mode: UI AUTOMATION ONLY
+2026-01-06 18:30:12 | =========================================
+2026-01-06 18:30:15 | =========================================
+2026-01-06 18:30:15 | TRIGGER: Ethernet cable detected but no IP
+2026-01-06 18:30:15 | Starting UI automation sequence...
+2026-01-06 18:30:15 | =========================================
+2026-01-06 18:30:15 | Opening Tethering settings UI...
+2026-01-06 18:30:15 | Screen center: 540x960
+2026-01-06 18:30:18 | Settings opened, waiting for UI to stabilize...
+2026-01-06 18:30:20 | Attempting to locate Ethernet toggle using UIAutomator...
+2026-01-06 18:30:21 | UIAutomator found bounds: [48,789][1032,912]
+2026-01-06 18:30:21 | Found Ethernet toggle at coordinates: 540,850
+2026-01-06 18:30:21 | Tapped Ethernet toggle
+2026-01-06 18:30:23 | UI automation completed, returning to home...
+2026-01-06 18:30:24 | UI automation sequence finished
+2026-01-06 18:30:29 | ✓ IP address obtained: 192.168.1.100/24
+2026-01-06 18:30:29 | ✓ SUCCESS: UI automation enabled Ethernet!
 ```
+
+### Retry After Failure:
+```
+2026-01-06 18:31:00 | ✗ FAILED: No IP assignment after UI automation
+2026-01-06 18:31:00 | Possible causes:
+2026-01-06 18:31:00 |   → Toggle not found/clicked correctly
+2026-01-06 18:31:00 |   → DHCP server not responding on network
+2026-01-06 18:31:00 |   → Manual settings configuration required
+2026-01-06 18:36:00 | Auto-retry: Resetting automation flag after 5-minute wait...
+2026-01-06 18:36:10 | =========================================
+2026-01-06 18:36:10 | TRIGGER: Ethernet cable detected but no IP
+2026-01-06 18:36:10 | Starting UI automation sequence...
+```
+
+## Why UI-Only Mode?
+
+### ✅ Advantages:
+- **Universal compatibility**: Works on any Android device with UI
+- **No permission issues**: Doesn't require special system permissions
+- **Works on locked-down systems**: Command-line methods often blocked
+- **Visual verification**: User can see what's happening
+- **Consistent across Android versions**: UI is more stable than CLI APIs
+
+### ⚠️ Considerations:
+- Requires screen to be unlocked (on first boot)
+- May need coordinate calibration on custom ROMs
+- Slightly slower than command-line (2-5 seconds)
 
 ## Testing Commands
 
@@ -212,5 +286,21 @@ tail -f /data/local/tmp/force_eth.log
 
 # Test UI automation manually
 sh /data/local/tmp/test_ui_automation.sh
+
+# Validate device compatibility
+sh /data/local/tmp/validate_automation.sh
 ```
 
+## Flowchart Summary
+
+1. **Boot** → Service starts
+2. **Monitor** → Check eth0 every 5 seconds
+3. **Detect** → Cable connected + No IP
+4. **Automate** → Open settings + Find toggle + Tap
+5. **Verify** → Check IP assignment
+6. **Retry** → If failed, wait 5 minutes and repeat
+7. **Success** → Monitor for disconnection
+
+---
+
+**This is a pure UI automation solution - no command-line methods are used.**

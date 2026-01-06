@@ -1,6 +1,6 @@
 id=force-ethernet-always-on
-name=Force Ethernet Always On
-version=1.10
-versionCode=10
+name=Force Ethernet Always On (UI Automation)
+version=2.0
+versionCode=20
 author=sathis810
-description=Automatically enables eth0 when available and re-enables it every 3 seconds if disabled
+description=Automatically enables Ethernet via UI automation when cable connected (UI-only mode)
