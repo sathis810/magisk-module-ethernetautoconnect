@@ -29,6 +29,7 @@ set_perm $MODPATH/service.sh 0 0 0755
 ui_print "Installation complete!"
 ui_print "Please reboot your device."
 ui_print ""
-ui_print "Logs: /data/local/tmp/force_eth.log"
+ui_print "Debug: /data/local/tmp/force_eth.log"
+ui_print "Note: Verbose logging enabled for debugging"
 ui_print "**************************************"
 
