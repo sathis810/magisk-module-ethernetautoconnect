@@ -78,51 +78,14 @@ open_tethering_settings() {
     log "Settings opened, waiting for UI to stabilize..."
     sleep 2
     
-    # Method 1: Try UIAutomator to find exact position
-    log "Attempting to locate Ethernet toggle using UIAutomator..."
-    COORDS=$(find_ethernet_toggle_coords)
+    # Hardcoded toggle coordinates for Ethernet switch
+    TAP_X=610
+    TAP_Y=1810
     
-    if [ $? -eq 0 ] && [ -n "$COORDS" ]; then
-        TAP_X=$(echo $COORDS | cut -d' ' -f1)
-        TAP_Y=$(echo $COORDS | cut -d' ' -f2)
-        log "Found Ethernet toggle at coordinates: ${TAP_X},${TAP_Y}"
-        
-        input tap $TAP_X $TAP_Y 2>/dev/null
-        log "Tapped Ethernet toggle"
-        sleep 2
-        
-    else
-        log "UIAutomator method failed, using fallback coordinate-based approach..."
-        
-        # Scroll down to find Ethernet option
-        log "Scrolling to find Ethernet option..."
-        input swipe $CENTER_X 1500 $CENTER_X 700 400 2>/dev/null
-        sleep 1
-        
-        # Try multiple tap positions based on common layouts
-        # Position 1: Lower third of screen (most common)
-        TAP_Y1=$(( CENTER_Y + (CENTER_Y / 2) ))
-        log "Attempting tap at position: ${CENTER_X},${TAP_Y1}"
-        input tap $CENTER_X $TAP_Y1 2>/dev/null
-        sleep 2
-        
-        # Check if toggle was successful by looking for text changes
-        # If not, try alternative positions
-        
-        # Position 2: Middle of screen
-        log "Attempting alternative position: ${CENTER_X},${CENTER_Y}"
-        input tap $CENTER_X $CENTER_Y 2>/dev/null
-        sleep 2
-        
-        # Position 3: Using DPAD navigation (works on some devices)
-        log "Attempting navigation using DPAD keys..."
-        for i in 1 2 3 4 5; do
-            input keyevent KEYCODE_DPAD_DOWN 2>/dev/null
-            sleep 0.3
-        done
-        input keyevent KEYCODE_ENTER 2>/dev/null
-        sleep 1
-    fi
+    log "Tapping Ethernet toggle at hardcoded coordinates: ${TAP_X},${TAP_Y}"
+    input tap $TAP_X $TAP_Y 2>/dev/null
+    log "Tapped Ethernet toggle"
+    sleep 2
     
     log "UI automation completed, returning to home..."
     sleep 1
@@ -170,6 +133,10 @@ while [ "$(getprop sys.boot_completed)" != "1" ]; do
     sleep 2
 done
 log "Boot completed"
+
+# Wait additional 10 seconds for all system services to fully initialize
+log "Waiting 10 seconds for system services to stabilize..."
+sleep 10
 
 log "========================================="
 log "Force Ethernet UI Automation Service Started"
