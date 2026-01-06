@@ -2,67 +2,76 @@
 MAGISK MODULE BUILD INFORMATION
 ====================================
 
-Module Name: Force Ethernet Always On
-Version: 1.10
+Module Name: Force Ethernet Always On (UI Automation)
+Version: 2.0 (UI-Only Mode)
 Build Date: January 6, 2026
-Package: force-ethernet-always-on-v1.10.zip
-Size: 10.8 KB
-SHA256: 6F3E4245C0C31361B7C034C1677790C38725034D03DED5A4B2B86B34EB44410C
+Package: force-ethernet-always-on-v2.0.zip
+Size: 11.0 KB (11,043 bytes)
+SHA256: 8C2E5EE13738EDF91AD320501542F860B5D89D160332CB5DE8C50A7D88576E52
 
 ====================================
 INCLUDED FILES
 ====================================
 
 Core Module Files:
-  ✓ module.prop           (203 bytes)  - Module metadata
-  ✓ service.sh           (9,699 bytes) - Main automation service
-  ✓ customize.sh         (1,088 bytes) - Installation script
-  ✓ uninstall.sh           (53 bytes)  - Cleanup script
+  ✓ module.prop             (215 bytes) - Module metadata
+  ✓ service.sh            (8,615 bytes) - UI automation service
+  ✓ customize.sh          (1,088 bytes) - Installation script
+  ✓ uninstall.sh             (53 bytes) - Cleanup script
 
 Documentation:
-  ✓ README.md            (8,159 bytes) - Complete user guide
+  ✓ README.md             (9,808 bytes) - Complete user guide
 
 Testing Tools:
-  ✓ test_ui_automation.sh    (3,863 bytes) - UI coordinate finder
-  ✓ validate_automation.sh   (4,491 bytes) - Device compatibility checker
+  ✓ test_ui_automation.sh (3,863 bytes) - UI coordinate finder
+  ✓ validate_automation.sh (4,491 bytes) - Device compatibility checker
 
 ====================================
-FEATURES IN THIS BUILD
+FEATURES IN THIS BUILD (v2.0)
 ====================================
+
+✅ Pure UI Automation Mode:
+   - NO command-line methods (cmd/ndc/ip/dhcpcd removed)
+   - Direct UI interaction only
+   - Works on locked-down Android systems
 
 ✅ Auto-Detection:
    - Monitors eth0 interface continuously
    - Detects cable connection via carrier status
    - Checks IP assignment status
 
-✅ Multi-Method Enabling:
-   - Command-line methods (3 attempts with 30s cooldown)
-     • cmd connectivity tether ethernet on
-     • ndc tether interface add eth0
-     • ip link set eth0 up
-     • dhcpcd eth0
-
-✅ UI Automation Fallback (NEW!):
+✅ 3-Tier Intelligent UI Automation:
    - Tier 1: UIAutomator (finds exact toggle coordinates)
+     • Dumps UI hierarchy
+     • Parses XML for "ethernet" elements
+     • Extracts bounds and calculates tap position
+   
    - Tier 2: Dynamic screen positioning (resolution-aware)
+     • Auto-detects screen resolution
+     • Tries multiple calculated positions
+     • Includes scroll gestures
+   
    - Tier 3: DPAD navigation (universal fallback)
+     • Keyboard event simulation
+     • Works with accessibility services
 
 ✅ Smart Verification:
-   - Verifies IP assignment after UI automation
-   - Auto-retries after 5 minutes if unsuccessful
-   - Comprehensive logging
+   - Waits for DHCP (5 seconds)
+   - Checks IP assignment 5 times
+   - Logs detailed success/failure status
+   - Auto-retries after 5 minutes
 
 ====================================
 INSTALLATION
 ====================================
 
 1. Transfer to device:
-   adb push force-ethernet-always-on-v1.10.zip /sdcard/
+   adb push force-ethernet-always-on-v2.0.zip /sdcard/
 
 2. Install via Magisk Manager:
    - Open Magisk Manager
    - Modules → Install from storage
-   - Select force-ethernet-always-on-v1.10.zip
+   - Select force-ethernet-always-on-v2.0.zip
    - Reboot
 
 ====================================
@@ -87,35 +96,84 @@ COMPATIBILITY
 Android: 14, 15, 16+ (should work on 11+)
 Magisk: 20.4+ (tested on Magisk 30)
 Architecture: Universal (shell script)
-Requirements: Device with eth0 interface
+Requirements: 
+  • Device with eth0 interface
+  • 'input' command available (standard on Android)
+  • Screen unlock on first boot (until toggle enabled)
 
 ====================================
-CHANGELOG v1.10
+CHANGELOG v2.0 (UI-ONLY MODE)
 ====================================
 
-NEW:
-+ Intelligent UI automation with three-tier approach
-+ UIAutomator integration for exact toggle detection
-+ Dynamic screen resolution detection
-+ IP assignment verification after automation
-+ Auto-retry logic (5-minute intervals)
-+ validate_automation.sh tool for device testing
-+ AUTOMATION_FLOW.md documentation
+REMOVED:
+- ALL command-line enabling methods:
+  × cmd connectivity tether ethernet
+  × ndc tether interface add
+  × ip link set up
+  × dhcpcd DHCP requests
+  × Multi-attempt command-line logic
+
+NEW APPROACH:
++ Pure UI automation only
++ Immediate trigger (no command-line attempts first)
++ Direct Settings navigation when cable detected
++ Cleaner, simpler code (8.6 KB vs 9.7 KB)
 
 IMPROVED:
-+ Better Android compatibility (sed instead of grep -P)
-+ Enhanced logging with success/failure indicators
-+ More robust fallback mechanisms
-+ Comprehensive error handling
++ Better logging with visual indicators (✓/✗/→)
++ Simplified state management
++ Faster response (no waiting for command failures)
++ More reliable on OEM-locked devices
+
+KEPT FROM v1.x:
++ 3-tier UI automation system
++ UIAutomator intelligent detection
++ Dynamic screen positioning
++ DPAD navigation fallback
++ IP verification
++ Auto-retry logic
+
+====================================
+WHY UI-ONLY MODE?
+====================================
+
+Advantages:
+  ✅ Works on ANY Android device with UI
+  ✅ No special system permissions required
+  ✅ Works on locked-down OEM ROMs
+  ✅ More consistent across Android versions
+  ✅ User can see what's happening
+  ✅ No dependency on CLI API changes
+
+Considerations:
+  ⚠️ Screen must be unlocked on first boot
+  ⚠️ Slightly slower (2-5 seconds vs instant)
+  ⚠️ May need calibration on custom ROMs (rare)
+
+====================================
+AUTOMATION FLOW
+====================================
+
+1. Boot → Service starts
+2. Monitor → Check eth0 every 5 seconds
+3. Detect → Cable connected + No IP
+4. Trigger → Immediately open Settings (no CLI attempts)
+5. Navigate → Find Tethering settings
+6. Detect → Use UIAutomator to find toggle
+7. Tap → Click Ethernet toggle
+8. Verify → Check IP assignment
+9. Log → Success or failure
+10. Retry → If failed, wait 5 minutes and repeat
 
 ====================================
 KNOWN LIMITATIONS
 ====================================
 
-- UI automation requires 'uiautomator' command (available on most devices)
-- Screen tap coordinates may need calibration on custom ROMs
+- Requires 'uiautomator' command (available on most devices)
+- Screen must be unlocked when automation triggers
 - DHCP server must be available on network
 - Some OEM skins may have different Settings layouts
+- First boot may require manual unlock
 
 ====================================
 SUPPORT & TROUBLESHOOTING
@@ -124,6 +182,9 @@ SUPPORT & TROUBLESHOOTING
 View Logs:
   adb shell "su -c 'cat /data/local/tmp/force_eth.log'"
 
+Live Monitoring:
+  adb shell "su -c 'tail -f /data/local/tmp/force_eth.log'"
+
 Check eth0 Status:
   adb shell "su -c 'cat /sys/class/net/eth0/carrier'"
   adb shell "su -c 'ip -4 addr show eth0'"
@@ -131,15 +192,41 @@ Check eth0 Status:
 Test UI Automation:
   Run test_ui_automation.sh to find correct coordinates
 
+Expected Log Output:
+  =========================================
+  TRIGGER: Ethernet cable detected but no IP
+  Starting UI automation sequence...
+  =========================================
+  Opening Tethering settings UI...
+  UIAutomator found bounds: [48,789][1032,912]
+  Found Ethernet toggle at coordinates: 540,850
+  Tapped Ethernet toggle
+  ✓ IP address obtained: 192.168.1.100/24
+  ✓ SUCCESS: UI automation enabled Ethernet!
+
 ====================================
 BUILD VERIFIED
 ====================================
 
 ✓ All core files included
-✓ Module structure validated
-✓ Shell scripts have correct line endings
+✓ Module structure validated  
+✓ Command-line code removed
+✓ UI-only mode confirmed
+✓ Shell scripts verified
 ✓ File permissions will be set by customize.sh
 ✓ Ready for distribution
 
 ====================================
+MIGRATION FROM v1.x
+====================================
 
+If upgrading from v1.10 or earlier:
+1. Uninstall old module in Magisk Manager
+2. Reboot device
+3. Install v2.0 module
+4. Reboot again
+
+Main difference: v2.0 skips command-line methods
+entirely and goes straight to UI automation.
+
+====================================
