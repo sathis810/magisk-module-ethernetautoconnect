@@ -67,15 +67,7 @@ wake_screen() {
         # Wake up the screen
         input keyevent KEYCODE_WAKEUP 2>/dev/null
         sleep 1
-        
-        # Try to unlock simple swipe lock (won't work with PIN/password/pattern)
-        input keyevent KEYCODE_MENU 2>/dev/null
-        sleep 1
-        
-        # Alternative: Swipe up to unlock (works on many devices)
-        input swipe 540 1500 540 500 2>/dev/null
-        sleep 1
-        
+               
         log "Screen woken up and unlock attempted"
         return 0
     else
