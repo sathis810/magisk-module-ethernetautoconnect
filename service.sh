@@ -1,61 +1,50 @@
 #!/system/bin/sh
 
-# Wait until system is fully booted
+IFACE="eth0"
+LOGFILE="/data/local/tmp/force_eth.log"
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | $1" >> "$LOGFILE"
+}
+
+# Wait until Android is fully booted
+log "Waiting for boot completion..."
 while [ "$(getprop sys.boot_completed)" != "1" ]; do
     sleep 2
 done
+log "Boot completed"
 
-LOGFILE="/data/local/tmp/force_eth.log"
+log "Force Ethernet service started for interface: $IFACE"
 
-# Clear old log and start fresh
-echo "========================================" > $LOGFILE
-echo "$(date): Ethernet force service started" >> $LOGFILE
-echo "========================================" >> $LOGFILE
-
-# Variables to track state changes
-LAST_STATE=""
-LAST_CARRIER=""
-CHECK_COUNT=0
-
-# Main monitoring loop: checks eth0 status every 3 seconds and brings it up if cable is connected
 while true; do
-    CHECK_COUNT=$((CHECK_COUNT + 1))
-    
-    if [ -d /sys/class/net/eth0 ]; then
-        # Get current status
-        CARRIER=$(cat /sys/class/net/eth0/carrier 2>/dev/null)
-        STATE=$(cat /sys/class/net/eth0/operstate 2>/dev/null)
-        
-        # Log only on state changes or every 20 checks (60 seconds)
-        if [ "$STATE" != "$LAST_STATE" ] || [ "$CARRIER" != "$LAST_CARRIER" ] || [ $((CHECK_COUNT % 20)) -eq 0 ]; then
-            echo "$(date): [Check #$CHECK_COUNT] eth0 | carrier=$CARRIER | state=$STATE" >> $LOGFILE
-        fi
-        
-        # Check if cable is connected (carrier = 1)
-        if [ "$CARRIER" = "1" ]; then
-            # Force interface up if it's not up
-            if [ "$STATE" != "up" ]; then
-                echo "$(date): WARNING - Cable connected but interface DOWN! Forcing UP..." >> $LOGFILE
-                ip link set eth0 up 2>&1 >> $LOGFILE
-                
-                # Verify it came up
-                sleep 1
-                NEW_STATE=$(cat /sys/class/net/eth0/operstate 2>/dev/null)
-                echo "$(date): eth0 state after force: $NEW_STATE" >> $LOGFILE
-            fi
-        elif [ "$CARRIER" != "$LAST_CARRIER" ]; then
-            echo "$(date): Cable disconnected" >> $LOGFILE
-        fi
-        
-        # Update last known state
-        LAST_STATE="$STATE"
-        LAST_CARRIER="$CARRIER"
-    else
-        if [ "$LAST_STATE" != "notfound" ]; then
-            echo "$(date): ERROR - eth0 interface NOT FOUND!" >> $LOGFILE
-            LAST_STATE="notfound"
-        fi
+    if [ ! -d "/sys/class/net/$IFACE" ]; then
+        log "Interface $IFACE not present"
+        sleep 3
+        continue
     fi
-    
+
+    # Carrier state (1 = cable plugged)
+    CARRIER=$(cat /sys/class/net/$IFACE/carrier 2>/dev/null)
+    [ -z "$CARRIER" ] && CARRIER="unknown"
+
+    # IP check
+    IPV4=$(ip -4 addr show $IFACE | awk '/inet / {print $2}')
+    HAS_IP=0
+    [ -n "$IPV4" ] && HAS_IP=1
+
+    log "State check → carrier=$CARRIER ipv4=$IPV4"
+
+    if [ "$CARRIER" = "1" ] && [ "$HAS_IP" -eq 0 ]; then
+        log "Ethernet connected but no IP → restarting EthernetService"
+
+        setprop ctl.restart ethernet
+        log "Sent ctl.restart ethernet"
+
+        setprop ctl.restart netd
+        log "Sent ctl.restart netd (fallback)"
+
+        sleep 5
+    fi
+
     sleep 3
 done
