@@ -37,8 +37,6 @@ while true; do
     HAS_IP=0
     [ -n "$IPV4" ] && HAS_IP=1
 
-    log "State check → carrier=$CARRIER ipv4=$IPV4"
-
     # Reset restart counter if IP is obtained
     if [ "$HAS_IP" -eq 1 ]; then
         RESTART_COUNT=0
@@ -51,11 +49,23 @@ while true; do
         
         # Only restart if at least 30 seconds have passed since last restart
         if [ "$TIME_SINCE_LAST" -gt 30 ] || [ "$LAST_RESTART_TIME" -eq 0 ]; then
-            log "Ethernet connected but no IP → restarting ethernet service (attempt $((RESTART_COUNT + 1))/$MAX_RESTARTS)"
+            log "Ethernet connected but no IP → enabling ethernet tethering (attempt $((RESTART_COUNT + 1))/$MAX_RESTARTS)"
             
-            # Only restart ethernet service - do NOT restart netd (too dangerous)
-            setprop ctl.restart ethernet
-            log "Sent ctl.restart ethernet"
+            # Enable ethernet tethering using Android connectivity command
+            svc usb setFunctions rndis
+            log "Set USB function to RNDIS"
+            
+            # Alternative: Use connectivity command to enable tethering
+            cmd connectivity tether usb on 2>/dev/null || cmd connectivity tethering usb on 2>/dev/null
+            log "Enabled USB/Ethernet tethering via connectivity"
+            
+            # Bring interface up manually
+            ifconfig $IFACE up 2>/dev/null
+            log "Brought $IFACE interface up"
+            
+            # Request DHCP if available
+            dhcpcd $IFACE 2>/dev/null &
+            log "Requested DHCP for $IFACE"
             
             RESTART_COUNT=$((RESTART_COUNT + 1))
             LAST_RESTART_TIME=$CURRENT_TIME
