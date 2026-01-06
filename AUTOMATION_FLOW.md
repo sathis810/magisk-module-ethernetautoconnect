@@ -112,11 +112,28 @@
 ### ✅ **Pure UI Automation**
 - ❌ No command-line methods
 - ✅ Direct UI interaction only
+- ✅ Auto screen wake-up if screen is off
 - ✅ Works on locked-down Android systems
 
 ## Detailed UI Automation Steps
 
-### Step 1: Wait for Boot Completion
+### Step 1: Wake Screen (if needed)
+```bash
+wake_screen() {
+    SCREEN_STATE=$(dumpsys power | grep "Display Power: state=" | cut -d'=' -f2)
+    
+    if [ "$SCREEN_STATE" = "OFF" ]; then
+        input keyevent KEYCODE_WAKEUP
+        input swipe 540 1500 540 500  # Swipe up to unlock
+    fi
+}
+```
+- Checks screen power state
+- Wakes up screen if off
+- Attempts simple unlock (swipe)
+- Ensures UI can be interacted with
+
+### Step 2: Wait for Boot Completion
 ```bash
 # Wait for system property
 while [ "$(getprop sys.boot_completed)" != "1" ]; do
@@ -127,7 +144,7 @@ done
 sleep 10
 ```
 
-### Step 2: Open Tethering Settings
+### Step 3: Open Tethering Settings
 ```bash
 # Try multiple methods to open settings
 am start -a android.settings.TETHER_SETTINGS
@@ -137,12 +154,12 @@ am start -n com.android.settings/.TetherSettings
 am start -a android.settings.WIRELESS_SETTINGS
 ```
 
-### Step 3: Wait for UI Stabilization
+### Step 4: Wait for UI Stabilization
 ```bash
 sleep 2  # Let the UI fully load
 ```
 
-### Step 4: Tap Ethernet Toggle (Hardcoded)
+### Step 5: Tap Ethernet Toggle (Hardcoded)
 ```bash
 # Direct tap at calibrated coordinates
 input tap 610 1810
@@ -155,12 +172,12 @@ Tapping Ethernet toggle at hardcoded coordinates: 610,1810
 Tapped Ethernet toggle
 ```
 
-### Step 5: Return Home
+### Step 6: Return Home
 ```bash
 input keyevent KEYCODE_HOME
 ```
 
-### Step 6: Verify Success
+### Step 7: Verify Success
 ```bash
 Wait 5 seconds
 Loop 5 times:

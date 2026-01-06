@@ -56,9 +56,40 @@ find_ethernet_toggle_coords() {
     return 1
 }
 
+# Function to wake up screen if it's off
+wake_screen() {
+    # Check if screen is off
+    SCREEN_STATE=$(dumpsys power | grep "Display Power: state=" | cut -d'=' -f2)
+    
+    if [ "$SCREEN_STATE" = "OFF" ] || [ -z "$SCREEN_STATE" ]; then
+        log "Screen is OFF - waking up screen..."
+        
+        # Wake up the screen
+        input keyevent KEYCODE_WAKEUP 2>/dev/null
+        sleep 1
+        
+        # Try to unlock simple swipe lock (won't work with PIN/password/pattern)
+        input keyevent KEYCODE_MENU 2>/dev/null
+        sleep 1
+        
+        # Alternative: Swipe up to unlock (works on many devices)
+        input swipe 540 1500 540 500 2>/dev/null
+        sleep 1
+        
+        log "Screen woken up and unlock attempted"
+        return 0
+    else
+        log "Screen is already ON (state: $SCREEN_STATE)"
+        return 1
+    fi
+}
+
 # Function to open Tethering settings and attempt to enable Ethernet
 open_tethering_settings() {
     log "Opening Tethering settings UI..."
+    
+    # Ensure screen is on before UI automation
+    wake_screen
     
     # Get screen resolution for dynamic positioning
     SCREEN_INFO=$(get_screen_center)

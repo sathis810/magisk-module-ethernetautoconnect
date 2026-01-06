@@ -7,6 +7,7 @@ A Magisk module that automatically enables Ethernet (eth0) connectivity via **UI
 - 🔌 **Auto-Enable Ethernet**: Automatically enables eth0 when an Ethernet cable is connected
 - 📡 **Carrier Detection**: Monitors cable connection status using carrier detection
 - 🎯 **Pure UI Automation**: Opens Tethering settings and clicks Ethernet toggle automatically
+- 🔓 **Auto Screen Wake**: Automatically wakes up screen if off during automation
 - 🤖 **3-Tier Intelligence**: UIAutomator → Screen positioning → DPAD navigation
 - ✅ **Smart Verification**: Confirms IP assignment after automation
 - 🔄 **Auto-Retry**: Retries every 1 minute if unsuccessful
@@ -38,15 +39,20 @@ The module runs a background service that:
 3. **Detects conditions**: Cable connected (carrier=1) + No IP assigned
 4. **Triggers UI Automation** immediately:
    
-   **Step 1: Open Settings**
+   **Step 1: Wake Screen (if needed)**
+   - Checks if screen is off
+   - Wakes up screen and attempts simple unlock
+   - Ensures UI automation can interact with settings
+   
+   **Step 2: Open Settings**
    - Tries multiple methods to open Tethering settings
    - `am start -a android.settings.TETHER_SETTINGS`
    
-   **Step 2: Detect Screen**
+   **Step 3: Detect Screen**
    - Auto-detects screen resolution
    - Calculates dynamic tap positions
    
-   **Step 3: Find & Tap Toggle (3-Tier Approach)**
+   **Step 4: Find & Tap Toggle (3-Tier Approach)**
    - **Tier 1 - UIAutomator** (Best):
      * Dumps UI hierarchy
      * Finds "ethernet" element
@@ -62,12 +68,12 @@ The module runs a background service that:
      * Uses keyboard events
      * KEYCODE_DPAD_DOWN (5x) + KEYCODE_ENTER
    
-   **Step 4: Verify Success**
+   **Step 5: Verify Success**
    - Waits 5 seconds for DHCP
    - Checks IP assignment 5 times
    - Logs success or failure
    
-   **Step 5: Auto-Retry**
+   **Step 6: Auto-Retry**
    - If failed, retries after 1 minute
    - 10-second cooldown between attempts
 
