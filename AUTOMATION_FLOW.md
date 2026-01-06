@@ -82,7 +82,7 @@
                               │        ┌───────────────────┐  ┌────────────────┐
                               │        │ ✓ Log Success     │  │ ✗ Log Failure  │
                               │        │ Set Flag          │  │ Set Flag       │
-                              │        │ Return to Monitor │  │ Wait 5 minutes │
+                              │        │ Return to Monitor │  │ Wait 1 minute  │
                               │        └───────────────────┘  │ Reset & Retry  │
                               │                    │          └────────────────┘
                               │                    │                   │
@@ -106,7 +106,7 @@
 
 ### ✅ **Self-Healing**
 - Resets flag when IP obtained
-- Retries after 5 minutes if failed
+- Retries after 1 minute if failed
 - 10-second cooldown between attempts
 
 ### ✅ **Pure UI Automation**
@@ -204,7 +204,7 @@ If no IP after 5 attempts: ✗ FAIL
 2026-01-06 18:31:00 |   → Toggle not found/clicked correctly
 2026-01-06 18:31:00 |   → DHCP server not responding on network
 2026-01-06 18:31:00 |   → Manual settings configuration required
-2026-01-06 18:36:00 | Auto-retry: Resetting automation flag after 5-minute wait...
+2026-01-06 18:36:00 | Auto-retry: Resetting automation flag after 1-minute wait...
 2026-01-06 18:36:10 | =========================================
 2026-01-06 18:36:10 | TRIGGER: Ethernet cable detected but no IP
 2026-01-06 18:36:10 | Starting UI automation sequence...
@@ -255,7 +255,7 @@ sh /data/local/tmp/validate_automation.sh
 4. **Detect** → Cable connected + No IP
 5. **Automate** → Open settings + Tap at 610,1810
 6. **Verify** → Check IP assignment
-7. **Retry** → If failed, wait 5 minutes and repeat
+7. **Retry** → If failed, wait 1 minute and repeat
 8. **Success** → Monitor for disconnection
 
 ---

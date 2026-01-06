@@ -3,6 +3,18 @@
 IFACE="eth0"
 LOGFILE="/data/local/tmp/force_eth.log"
 
+# Function to check and delete log file if it exceeds 10KB
+check_and_rotate_log() {
+    if [ -f "$LOGFILE" ]; then
+        # Get file size in bytes
+        LOG_SIZE=$(stat -c%s "$LOGFILE" 2>/dev/null || stat -f%z "$LOGFILE" 2>/dev/null)
+        # 10KB = 10240 bytes
+        if [ -n "$LOG_SIZE" ] && [ "$LOG_SIZE" -gt 10240 ]; then
+            rm -f "$LOGFILE"
+        fi
+    fi
+}
+
 # Function to log messages with timestamp
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') | $1" >> "$LOGFILE"
@@ -127,6 +139,9 @@ get_screen_center() {
     fi
 }
 
+# Check and rotate log file if it exceeds 10KB before starting new logs
+check_and_rotate_log
+
 # Wait until Android is fully booted
 log "Waiting for boot completion..."
 while [ "$(getprop sys.boot_completed)" != "1" ]; do
@@ -164,11 +179,15 @@ while true; do
     HAS_IP=0
     [ -n "$IPV4" ] && HAS_IP=1
 
-    # Reset automation flag if IP is obtained
+    # Reset automation flag if IP is obtained OR cable is disconnected
     if [ "$HAS_IP" -eq 1 ]; then
         if [ "$UI_AUTOMATION_ATTEMPTED" -eq 1 ]; then
             log "✓ Ethernet active with IP: $IPV4"
         fi
+        UI_AUTOMATION_ATTEMPTED=0
+    elif [ "$CARRIER" != "1" ] && [ "$UI_AUTOMATION_ATTEMPTED" -eq 1 ]; then
+        # Reset flag when cable is disconnected (allows retry on reconnection)
+        log "Cable disconnected - resetting automation flag"
         UI_AUTOMATION_ATTEMPTED=0
     fi
 
@@ -205,10 +224,10 @@ while true; do
             log "Cooldown active - waiting before next attempt..."
         fi
     elif [ "$UI_AUTOMATION_ATTEMPTED" -eq 1 ] && [ "$HAS_IP" -eq 0 ]; then
-        # UI automation attempted but still no IP - retry after 5 minutes
+        # UI automation attempted but still no IP - retry after 1 minute
         CURRENT_TIME=$(date +%s)
-        if [ $((CURRENT_TIME - $LAST_AUTOMATION_TIME)) -gt 300 ]; then
-            log "Auto-retry: Resetting automation flag after 5-minute wait..."
+        if [ $((CURRENT_TIME - $LAST_AUTOMATION_TIME)) -gt 60 ]; then
+            log "Auto-retry: Resetting automation flag after 1-minute wait..."
             UI_AUTOMATION_ATTEMPTED=0
         else
             log "Waiting for IP assignment or manual intervention..."

@@ -9,7 +9,7 @@ A Magisk module that automatically enables Ethernet (eth0) connectivity via **UI
 - 🎯 **Pure UI Automation**: Opens Tethering settings and clicks Ethernet toggle automatically
 - 🤖 **3-Tier Intelligence**: UIAutomator → Screen positioning → DPAD navigation
 - ✅ **Smart Verification**: Confirms IP assignment after automation
-- 🔄 **Auto-Retry**: Retries every 5 minutes if unsuccessful
+- 🔄 **Auto-Retry**: Retries every 1 minute if unsuccessful
 - 📝 **Logging**: Comprehensive logging to `/data/local/tmp/force_eth.log`
 - 🚀 **Boot Integration**: Starts automatically after system boot completion
 - ⚠️ **UI-Only Mode**: No command-line methods (works on locked-down systems)
@@ -68,7 +68,7 @@ The module runs a background service that:
    - Logs success or failure
    
    **Step 5: Auto-Retry**
-   - If failed, retries after 5 minutes
+   - If failed, retries after 1 minute
    - 10-second cooldown between attempts
 
 5. **No Command-Line Methods**: This version uses ONLY UI automation
@@ -124,7 +124,7 @@ When **eth0 is available** but **no IP address is assigned**, the module immedia
 
 3. **Verifies Success** by checking if IP address was obtained after automation
 
-4. **Auto-Retry** if unsuccessful (retries after 5 minutes)
+4. **Auto-Retry** if unsuccessful (retries after 1 minute)
 
 ### Three-Tier Automation Approach
 
