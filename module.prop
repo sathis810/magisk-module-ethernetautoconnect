@@ -1,6 +1,6 @@
 id=force-ethernet-always-on
 name=Force Ethernet Always On
-version=1.8
-versionCode=8
+version=1.9
+versionCode=9
 author=sathis810
 description=Automatically enables eth0 when available and re-enables it every 3 seconds if disabled

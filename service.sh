@@ -52,15 +52,15 @@ while true; do
             log "Ethernet connected but no IP → enabling ethernet tethering (attempt $((RESTART_COUNT + 1))/$MAX_RESTARTS)"
             
             # Enable ethernet tethering using Android connectivity command
-            svc usb setFunctions rndis
-            log "Set USB function to RNDIS"
+            cmd connectivity tether ethernet on 2>/dev/null || cmd connectivity tethering ethernet on 2>/dev/null
+            log "Enabled Ethernet tethering via connectivity command"
             
-            # Alternative: Use connectivity command to enable tethering
-            cmd connectivity tether usb on 2>/dev/null || cmd connectivity tethering usb on 2>/dev/null
-            log "Enabled USB/Ethernet tethering via connectivity"
+            # Alternative method using ndc (network daemon control)
+            ndc tether interface add $IFACE 2>/dev/null
+            log "Added $IFACE to tethering via ndc"
             
             # Bring interface up manually
-            ifconfig $IFACE up 2>/dev/null
+            ip link set $IFACE up 2>/dev/null
             log "Brought $IFACE interface up"
             
             # Request DHCP if available
