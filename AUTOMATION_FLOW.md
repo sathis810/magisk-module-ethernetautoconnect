@@ -6,6 +6,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                     SYSTEM BOOT COMPLETE                         │
 │              UI Automation Service Started (service.sh)          │
+│              + 10 Second Wait for System Stabilization           │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -56,46 +57,10 @@
                               │              └───────────────────────────┘
                               │                              ↓
                               │              ┌───────────────────────────┐
-                              │              │ DETECT SCREEN RESOLUTION  │
-                              │              │ wm size → CENTER_X, CENTER_Y│
+                              │              │ TAP ETHERNET TOGGLE       │
+                              │              │ Hardcoded: X=610, Y=1810  │
+                              │              │ input tap 610 1810        │
                               │              └───────────────────────────┘
-                              │                              ↓
-                              │              ┌───────────────────────────┐
-                              │              │ TIER 1: UIAutomator       │
-                              │              │ ─────────────────────     │
-                              │              │ • Dump UI hierarchy       │
-                              │              │ • Find "ethernet" element │
-                              │              │ • Extract bounds coords   │
-                              │              │ • Calculate center tap    │
-                              │              │ • Execute tap             │
-                              │              └───────────────────────────┘
-                              │                              ↓
-                              │                    ┌─────────┴─────────┐
-                              │                    │                   │
-                              │              SUCCESS│                   │FAIL
-                              │                    ↓                   ↓
-                              │            ┌──────────┐    ┌───────────────────┐
-                              │            │ Tap Done │    │ TIER 2: Screen    │
-                              │            └──────────┘    │ Positioning       │
-                              │                    │       │ ─────────────     │
-                              │                    │       │ • Scroll to find  │
-                              │                    │       │ • Try lower third │
-                              │                    │       │ • Try middle      │
-                              │                    │       └───────────────────┘
-                              │                    │               ↓
-                              │                    │       ┌───────┴────────┐
-                              │                    │       │                │
-                              │                    │ SUCCESS│                │FAIL
-                              │                    │       ↓                ↓
-                              │                    │  ┌─────────┐  ┌────────────┐
-                              │                    │  │Tap Done │  │ TIER 3:    │
-                              │                    │  └─────────┘  │ DPAD Nav   │
-                              │                    │       │       │ ────────── │
-                              │                    │       │       │ • 5x DOWN  │
-                              │                    │       │       │ • ENTER    │
-                              │                    │       │       └────────────┘
-                              │                    │       │               │
-                              │                    └───────┴───────────────┘
                               │                              ↓
                               │              ┌───────────────────────────┐
                               │              │ RETURN TO HOME SCREEN     │
@@ -133,10 +98,10 @@
 
 ### ✅ **UI Automation Flow**
 1. **Immediate trigger** when eth0 detected without IP
-2. **Three-tier intelligent approach**:
-   - **Tier 1**: UIAutomator (finds exact coordinates)
-   - **Tier 2**: Dynamic screen positioning
-   - **Tier 3**: DPAD navigation
+2. **Direct tap approach**:
+   - Hardcoded coordinates (X=610, Y=1810)
+   - Fast and reliable - no detection needed
+   - Device-specific calibration
 3. **Automatic verification** of IP assignment
 
 ### ✅ **Self-Healing**
@@ -151,7 +116,18 @@
 
 ## Detailed UI Automation Steps
 
-### Step 1: Open Tethering Settings
+### Step 1: Wait for Boot Completion
+```bash
+# Wait for system property
+while [ "$(getprop sys.boot_completed)" != "1" ]; do
+    sleep 2
+done
+
+# Additional 10-second wait for system services
+sleep 10
+```
+
+### Step 2: Open Tethering Settings
 ```bash
 # Try multiple methods to open settings
 am start -a android.settings.TETHER_SETTINGS
@@ -161,52 +137,30 @@ am start -n com.android.settings/.TetherSettings
 am start -a android.settings.WIRELESS_SETTINGS
 ```
 
-### Step 2: Detect Screen Resolution
+### Step 3: Wait for UI Stabilization
 ```bash
-wm size → Extract Width x Height
-Calculate: CENTER_X = Width / 2
-Calculate: CENTER_Y = Height / 2
+sleep 2  # Let the UI fully load
 ```
 
-### Step 3: UIAutomator Detection (Tier 1)
+### Step 4: Tap Ethernet Toggle (Hardcoded)
 ```bash
-1. uiautomator dump /data/local/tmp/ui_dump.xml
-2. grep -i "ethernet" ui_dump.xml
-3. Extract: bounds="[left,top][right,bottom]"
-4. Calculate: TAP_X = (left + right) / 2
-5. Calculate: TAP_Y = (top + bottom) / 2
-6. Execute: input tap TAP_X TAP_Y
+# Direct tap at calibrated coordinates
+input tap 610 1810
+sleep 2
 ```
 
 **Example Output:**
 ```
-UIAutomator found bounds: [48,789][1032,912]
-Found Ethernet toggle at coordinates: 540,850
+Tapping Ethernet toggle at hardcoded coordinates: 610,1810
 Tapped Ethernet toggle
 ```
 
-### Step 4: Screen Positioning (Tier 2 - Fallback)
-```bash
-1. Scroll down: input swipe CENTER_X 1500 CENTER_X 700
-2. Try position 1: TAP_Y = CENTER_Y + (CENTER_Y / 2)
-   → input tap CENTER_X TAP_Y
-3. Try position 2: input tap CENTER_X CENTER_Y
-```
-
-### Step 5: DPAD Navigation (Tier 3 - Last Resort)
-```bash
-Loop 5 times:
-  input keyevent KEYCODE_DPAD_DOWN
-  sleep 0.3
-input keyevent KEYCODE_ENTER
-```
-
-### Step 6: Return Home
+### Step 5: Return Home
 ```bash
 input keyevent KEYCODE_HOME
 ```
 
-### Step 7: Verify Success
+### Step 6: Verify Success
 ```bash
 Wait 5 seconds
 Loop 5 times:
@@ -220,6 +174,9 @@ If no IP after 5 attempts: ✗ FAIL
 
 ### Successful UI Automation:
 ```
+2026-01-06 18:30:00 | Waiting for boot completion...
+2026-01-06 18:30:02 | Boot completed
+2026-01-06 18:30:02 | Waiting 10 seconds for system services to stabilize...
 2026-01-06 18:30:12 | =========================================
 2026-01-06 18:30:12 | Force Ethernet UI Automation Service Started
 2026-01-06 18:30:12 | Interface: eth0
@@ -232,14 +189,12 @@ If no IP after 5 attempts: ✗ FAIL
 2026-01-06 18:30:15 | Opening Tethering settings UI...
 2026-01-06 18:30:15 | Screen center: 540x960
 2026-01-06 18:30:18 | Settings opened, waiting for UI to stabilize...
-2026-01-06 18:30:20 | Attempting to locate Ethernet toggle using UIAutomator...
-2026-01-06 18:30:21 | UIAutomator found bounds: [48,789][1032,912]
-2026-01-06 18:30:21 | Found Ethernet toggle at coordinates: 540,850
-2026-01-06 18:30:21 | Tapped Ethernet toggle
-2026-01-06 18:30:23 | UI automation completed, returning to home...
-2026-01-06 18:30:24 | UI automation sequence finished
-2026-01-06 18:30:29 | ✓ IP address obtained: 192.168.1.100/24
-2026-01-06 18:30:29 | ✓ SUCCESS: UI automation enabled Ethernet!
+2026-01-06 18:30:20 | Tapping Ethernet toggle at hardcoded coordinates: 610,1810
+2026-01-06 18:30:20 | Tapped Ethernet toggle
+2026-01-06 18:30:22 | UI automation completed, returning to home...
+2026-01-06 18:30:23 | UI automation sequence finished
+2026-01-06 18:30:28 | ✓ IP address obtained: 192.168.1.100/24
+2026-01-06 18:30:28 | ✓ SUCCESS: UI automation enabled Ethernet!
 ```
 
 ### Retry After Failure:
@@ -266,8 +221,9 @@ If no IP after 5 attempts: ✗ FAIL
 
 ### ⚠️ Considerations:
 - Requires screen to be unlocked (on first boot)
-- May need coordinate calibration on custom ROMs
+- **Uses hardcoded coordinates (610, 1810)** - may need adjustment for different devices/resolutions
 - Slightly slower than command-line (2-5 seconds)
+- 10-second boot delay ensures system stability
 
 ## Testing Commands
 
@@ -293,13 +249,37 @@ sh /data/local/tmp/validate_automation.sh
 
 ## Flowchart Summary
 
-1. **Boot** → Service starts
-2. **Monitor** → Check eth0 every 5 seconds
-3. **Detect** → Cable connected + No IP
-4. **Automate** → Open settings + Find toggle + Tap
-5. **Verify** → Check IP assignment
-6. **Retry** → If failed, wait 5 minutes and repeat
-7. **Success** → Monitor for disconnection
+1. **Boot** → Wait for completion + 10 second stabilization
+2. **Service Start** → Initialize monitoring loop
+3. **Monitor** → Check eth0 every 5 seconds
+4. **Detect** → Cable connected + No IP
+5. **Automate** → Open settings + Tap at 610,1810
+6. **Verify** → Check IP assignment
+7. **Retry** → If failed, wait 5 minutes and repeat
+8. **Success** → Monitor for disconnection
+
+---
+
+## Configuration Notes
+
+### Hardcoded Coordinates
+The script uses hardcoded tap coordinates **X=610, Y=1810** for the Ethernet toggle switch. These coordinates are device-specific and may need adjustment if:
+- Using a different screen resolution
+- Using a custom ROM with modified UI layout
+- The Settings app layout changes after an update
+
+To find the correct coordinates for your device:
+1. Enable Developer Options → "Pointer location"
+2. Open Tethering settings
+3. Touch the Ethernet toggle and note the X,Y coordinates
+4. Update `TAP_X` and `TAP_Y` values in `service.sh`
+
+### Boot Wait Period
+A 10-second wait after boot completion ensures:
+- All Android system services are fully initialized
+- UI automation tools are ready
+- Settings app can be launched reliably
+- Reduces race conditions during startup
 
 ---
 
