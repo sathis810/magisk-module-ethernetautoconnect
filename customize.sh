@@ -1,9 +1,11 @@
 #!/system/bin/sh
-# Ethernet Auto-Connect - Installation Script
+# Force Ethernet Always On - Installation Script
 
-# Magisk Module Template: https://github.com/topjohnwu/magisk-module-template
-
-SKIPUNZIP=0
+##########################################################################################
+#
+# Installation customization
+#
+##########################################################################################
 
 # Print installation messages
 ui_print "**************************************"
@@ -23,10 +25,10 @@ ui_print ""
 # Set permissions
 set_perm_recursive $MODPATH 0 0 0755 0644
 set_perm $MODPATH/service.sh 0 0 0755
-set_perm $MODPATH/uninstall.sh 0 0 0755
 
 ui_print "Installation complete!"
 ui_print "Please reboot your device."
 ui_print ""
 ui_print "Logs: /data/local/tmp/force_eth.log"
 ui_print "**************************************"
+

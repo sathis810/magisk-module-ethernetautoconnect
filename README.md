@@ -13,8 +13,9 @@ A Magisk module that automatically enables and maintains Ethernet (eth0) connect
 ## Compatibility
 
 - **Android**: 14, 15, 16 (should work on other versions too)
-- **Magisk**: 20.4+ (recommended latest version)
+- **Magisk**: 20.4+ (tested on Magisk 30)
 - **Requirements**: Device must have Ethernet hardware (eth0 interface)
+- **Note**: This module uses the modern Magisk format (no META-INF required)
 
 ## Installation
 

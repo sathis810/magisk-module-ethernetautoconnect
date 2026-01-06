@@ -9,6 +9,7 @@ LOGFILE="/data/local/tmp/force_eth.log"
 
 echo "$(date): Ethernet force service started" >> $LOGFILE
 
+# Main monitoring loop: checks eth0 status every 3 seconds and brings it up if cable is connected
 while true; do
     if [ -d /sys/class/net/eth0 ]; then
         # Check cable connection (carrier)
